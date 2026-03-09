@@ -67,7 +67,6 @@ tr:hover td{background:#1c2128}
   <div class="tab" data-tab="stripe">Stripe</div>
   <div class="tab" data-tab="timeline">Timeline</div>
 </div>
-<div style="background:#1a2a1a;border-bottom:1px solid #238636;padding:6px 24px;font-size:12px;color:#3fb950;text-align:center">Static export — PDF preview/download requires running the local viewer</div>
 <div class="content" id="content"></div>
 
 <script>
@@ -82,7 +81,7 @@ function renderAttachments(atts) {
   atts.forEach((a,i) => {
     const uid = 'pv'+Math.random().toString(36).slice(2,8);
     if(a.url) {
-      h+='<span class="att-chip">📎 <a href="#" onclick="event.preventDefault();alert(\'PDF preview requires running the local viewer (python viewer.py)\')">'+esc(a.name)+'</a>';
+      h+='<span class="att-chip">📎 <a href="'+a.url+'" target="_blank">'+esc(a.name)+'</a>';
       h+=' <button class="btn" style="padding:1px 6px;font-size:10px" onclick="event.stopPropagation();togglePreview(this,\''+a.url+'\',\''+uid+'\')">preview</button>';
       if(a.resolved && a.resolved!==a.name) h+='<span style="color:#484f58;font-size:10px" title="resolved to '+esc(a.resolved)+'">~</span>';
       h+='</span>';
@@ -97,7 +96,7 @@ function togglePreview(btn, url, uid) {
   let existing = btn.parentElement.parentElement.querySelector('#'+uid);
   if(existing) { existing.remove(); btn.textContent='preview'; return; }
   let frame = document.createElement('iframe');
-  frame.id=uid; frame.className='pdf-frame'; frame.src='about:blank';frame.contentDocument.body.innerHTML='<p style=padding:20px>PDF preview requires running the local viewer</p>';
+  frame.id=uid; frame.className='pdf-frame'; frame.src=url.replace('/files/','');
   btn.parentElement.parentElement.insertAdjacentElement('afterend', frame);
   btn.textContent='close';
 }
@@ -439,7 +438,7 @@ function filterDocs() {
       <div class="meta"><span>${files.length} docs</span><span>${(totalSize/1024/1024).toFixed(1)} MB</span></div>
     </div><div class="card-body"><table><thead><tr><th>File</th><th>Size</th><th></th></tr></thead><tbody>`;
     matchFiles.forEach(f => {
-      h += `<tr><td>${f.name}</td><td>${(f.size/1024).toFixed(1)} KB</td><td><span style="color:#484f58">local only</span></td></tr>`;
+      h += `<tr><td>${f.name}</td><td>${(f.size/1024).toFixed(1)} KB</td><td><a class="doc-link" href="${f.path}" target="_blank">Open</a></td></tr>`;
     });
     h += '</tbody></table></div></div>';
   });
