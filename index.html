@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mortgage Broker — Data Viewer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1117;color:#e1e4e8}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:12px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:18px;font-weight:600;color:#58a6ff}
+.header .stats{font-size:13px;color:#8b949e;margin-left:auto}
+.tabs{display:flex;gap:0;background:#161b22;border-bottom:1px solid #30363d;padding:0 24px}
+.tab{padding:10px 20px;cursor:pointer;color:#8b949e;font-size:14px;border-bottom:2px solid transparent;transition:.2s}
+.tab:hover{color:#c9d1d9}.tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.content{padding:24px;max-width:1400px;margin:0 auto}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:8px;overflow:hidden}
+.card-header{padding:10px 16px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:12px}
+.card-header h3{font-size:13px;font-weight:600;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-header .meta{display:flex;gap:6px;align-items:center;flex-shrink:0;font-size:12px;color:#8b949e}
+.badge{background:#1f6feb;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;white-space:nowrap}
+.badge.green{background:#238636}.badge.yellow{background:#9e6a03}.badge.red{background:#da3633}.badge.purple{background:#8957e5}.badge.gray{background:#30363d}
+.card-body{padding:16px;display:none}
+.card.open .card-body{display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:6px 12px;background:#0d1117;color:#8b949e;font-weight:500;border-bottom:1px solid #30363d;position:sticky;top:0}
+td{padding:6px 12px;border-bottom:1px solid #21262d;color:#c9d1d9;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover td{background:#1c2128}
+.email-body{padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:6px;white-space:pre-wrap;font-size:13px;line-height:1.6;margin:8px 0;color:#c9d1d9;display:none}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;margin-right:4px}
+.tag.inbound{background:#1a3a2a;color:#3fb950}.tag.outbound{background:#1a2a3a;color:#58a6ff}
+.tag.attach{background:#2d2a1a;color:#d29922}.tag.attach a{color:#d29922;text-decoration:none}.tag.attach a:hover{text-decoration:underline}
+.att-bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding:8px 0;border-top:1px solid #21262d}
+.att-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:12px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9}
+.att-chip a{color:#58a6ff;text-decoration:none}.att-chip a:hover{text-decoration:underline}
+.att-chip.missing{opacity:.5}
+.pdf-frame{width:100%;height:500px;border:1px solid #30363d;border-radius:6px;margin-top:8px;background:#fff}
+.fb{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.fb select,.fb input{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:6px 12px;border-radius:6px;font-size:13px}
+.fb input{width:260px}
+.fb .count{color:#8b949e;font-size:12px;margin-left:auto}
+.timeline{position:relative;padding-left:24px;margin:12px 0}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#30363d}
+.tl-item{position:relative;padding:6px 0 6px 20px;font-size:13px}
+.tl-item::before{content:'';position:absolute;left:-20px;top:12px;width:10px;height:10px;border-radius:50%;background:#58a6ff;border:2px solid #161b22}
+.tl-item.closed::before{background:#3fb950}.tl-item.denied::before{background:#da3633}.tl-item.withdrawn::before{background:#9e6a03}
+.tl-item .date{color:#8b949e;font-size:12px}.tl-item .label{color:#c9d1d9}
+.money{color:#3fb950}.money.neg{color:#da3633}
+.doc-link{color:#58a6ff;text-decoration:none}.doc-link:hover{text-decoration:underline}
+.stripe-table-wrap{max-height:400px;overflow:auto}
+.sub{color:#8b949e;font-size:12px;font-weight:400;margin-left:8px}
+.btn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#30363d;color:#fff}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Mortgage Broker Data Viewer</h1>
+  <div class="stats" id="stats"></div>
+</div>
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="profiles">Customers</div>
+  <div class="tab" data-tab="prospects">Prospects</div>
+  <div class="tab" data-tab="emails">Emails</div>
+  <div class="tab" data-tab="docs">Documents</div>
+  <div class="tab" data-tab="staff">Staff</div>
+  <div class="tab" data-tab="vendors">Vendors</div>
+  <div class="tab" data-tab="stripe">Stripe</div>
+  <div class="tab" data-tab="timeline">Timeline</div>
+</div>
+<div style="background:#1a2a1a;border-bottom:1px solid #238636;padding:6px 24px;font-size:12px;color:#3fb950;text-align:center">Static export — PDF preview/download requires running the local viewer</div>
+<div class="content" id="content"></div>
+
+<script>
+let DATA = {};
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const $=(id)=>document.getElementById(id);
+const money = n => '$'+(n||0).toLocaleString();
+
+function renderAttachments(atts) {
+  if(!atts||!atts.length) return '';
+  let h='<div class="att-bar">';
+  atts.forEach((a,i) => {
+    const uid = 'pv'+Math.random().toString(36).slice(2,8);
+    if(a.url) {
+      h+='<span class="att-chip">📎 <a href="#" onclick="event.preventDefault();alert(\'PDF preview requires running the local viewer (python viewer.py)\')">'+esc(a.name)+'</a>';
+      h+=' <button class="btn" style="padding:1px 6px;font-size:10px" onclick="event.stopPropagation();togglePreview(this,\''+a.url+'\',\''+uid+'\')">preview</button>';
+      if(a.resolved && a.resolved!==a.name) h+='<span style="color:#484f58;font-size:10px" title="resolved to '+esc(a.resolved)+'">~</span>';
+      h+='</span>';
+    } else {
+      h+='<span class="att-chip missing">📎 '+esc(a.name)+' <span style="color:#484f58;font-size:10px">(no file)</span></span>';
+    }
+  });
+  h+='</div>';
+  return h;
+}
+function togglePreview(btn, url, uid) {
+  let existing = btn.parentElement.parentElement.querySelector('#'+uid);
+  if(existing) { existing.remove(); btn.textContent='preview'; return; }
+  let frame = document.createElement('iframe');
+  frame.id=uid; frame.className='pdf-frame'; frame.src='about:blank';frame.contentDocument.body.innerHTML='<p style=padding:20px>PDF preview requires running the local viewer</p>';
+  btn.parentElement.parentElement.insertAdjacentElement('afterend', frame);
+  btn.textContent='close';
+}
+
+function collapseAll(container) { (container||$('content')).querySelectorAll('.card.open').forEach(c=>c.classList.remove('open')); }
+function expandAll(container) { (container||$('content')).querySelectorAll('.card:not(.open)').forEach(c=>c.classList.add('open')); }
+function ceButtons(targetId) {
+  return `<button class="btn" onclick="collapseAll(${targetId?'$(\''+targetId+'\')':'null'})">Collapse All</button><button class="btn" onclick="expandAll(${targetId?'$(\''+targetId+'\')':'null'})">Expand All</button>`;
+}
+
+async function load() {
+  try {
+    const [profiles, prospects, emails, docs, stripe, staff, vendorData] = await Promise.all([
+      fetch('data/profiles.json').then(r=>r.json()),
+      fetch('data/prospects.json').then(r=>r.json()),
+      fetch('data/emails.json').then(r=>r.json()),
+      fetch('data/docs.json').then(r=>r.json()),
+      fetch('data/stripe.json').then(r=>r.json()),
+      fetch('data/staff.json').then(r=>r.json()),
+      fetch('data/vendors.json').then(r=>r.json()),
+    ]);
+    DATA = {profiles, prospects, emails, docs, stripe, staff, vendors:vendorData.vendors, lenders:vendorData.lenders};
+    const pe = emails.filter(e=>!e.loan_id).length, le = emails.length - pe;
+    const nd = Object.values(docs).reduce((a,b)=>a+b.length,0);
+    const ns = Object.values(stripe).reduce((a,b)=>a+b.length,0);
+    const activeStaff = staff.filter(s=>s.is_active).length;
+    $('stats').textContent = `${profiles.length} loans | ${prospects.length} prospects | ${le+pe} emails | ${nd} docs | ${activeStaff}/${staff.length} staff | ${vendorData.vendors.length} vendors | ${vendorData.lenders.length} lenders`;
+    render('profiles');
+  } catch(err) {
+    $('content').innerHTML = '<pre style="color:#f85149;padding:24px">Load error: '+err.message+'</pre>';
+  }
+}
+
+function render(tab) {
+  try {
+    const c = $('content');
+    ({profiles:renderProfiles, prospects:renderProspects, emails:renderEmails,
+      docs:renderDocs, staff:renderStaff, vendors:renderVendors,
+      stripe:renderStripe, timeline:renderTimeline})[tab](c);
+  } catch(err) {
+    $('content').innerHTML = '<pre style="color:#f85149;padding:24px">Render error ('+tab+'): '+err.message+'<br>'+err.stack+'</pre>';
+  }
+}
+
+/* ── CUSTOMERS ── */
+function renderProfiles(c) {
+  const stages = [...new Set(DATA.profiles.map(p=>p.loan_stage||p.effective_stage))].sort();
+  const los = [...new Set(DATA.profiles.map(p=>p.loan_officer?.name).filter(Boolean))].sort();
+  const procs = [...new Set(DATA.profiles.map(p=>p.processor?.name).filter(Boolean))].sort();
+  const types = [...new Set(DATA.profiles.map(p=>p.property?.loan_type).filter(Boolean))].sort();
+  const purposes = [...new Set(DATA.profiles.map(p=>p.property?.loan_purpose).filter(Boolean))].sort();
+  const lenders = [...new Set(DATA.profiles.map(p=>p.lender?.name).filter(Boolean))].sort();
+
+  let h = `<div class="fb">
+    <select id="pStage" onchange="filterProfiles()"><option value="">All Stages</option>${stages.map(s=>'<option>'+s+'</option>').join('')}</select>
+    <select id="pType" onchange="filterProfiles()"><option value="">All Types</option>${types.map(t=>'<option>'+t+'</option>').join('')}</select>
+    <select id="pPurpose" onchange="filterProfiles()"><option value="">All Purposes</option>${purposes.map(t=>'<option>'+t+'</option>').join('')}</select>
+    <select id="pLO" onchange="filterProfiles()"><option value="">All LOs</option>${los.map(l=>'<option>'+l+'</option>').join('')}</select>
+    <select id="pProc" onchange="filterProfiles()"><option value="">All Processors</option>${procs.map(p=>'<option>'+p+'</option>').join('')}</select>
+    <select id="pLender" onchange="filterProfiles()"><option value="">All Lenders</option>${lenders.map(l=>'<option>'+l+'</option>').join('')}</select>
+    <select id="pJoint" onchange="filterProfiles()"><option value="">Joint/Ind</option><option value="joint">Joint</option><option value="individual">Individual</option></select>
+    <input id="pSearch" placeholder="Search name, loan #, employer..." oninput="filterProfiles()">
+    ${ceButtons('pList')}
+    <span class="count" id="pCount"></span>
+  </div><div id="pList"></div>`;
+  c.innerHTML = h;
+  filterProfiles();
+}
+function filterProfiles() {
+  const stage=$('pStage').value, type=$('pType').value, purpose=$('pPurpose').value,
+        lo=$('pLO').value, proc=$('pProc').value, lender=$('pLender').value,
+        joint=$('pJoint').value, q=$('pSearch').value.toLowerCase();
+  let list = DATA.profiles;
+  if(stage) list=list.filter(p=>(p.loan_stage||p.effective_stage)===stage);
+  if(type) list=list.filter(p=>p.property?.loan_type===type);
+  if(purpose) list=list.filter(p=>p.property?.loan_purpose===purpose);
+  if(lo) list=list.filter(p=>p.loan_officer?.name===lo);
+  if(proc) list=list.filter(p=>p.processor?.name===proc);
+  if(lender) list=list.filter(p=>p.lender?.name===lender);
+  if(joint==='joint') list=list.filter(p=>p.borrower?.credit_type==='joint');
+  if(joint==='individual') list=list.filter(p=>p.borrower?.credit_type!=='joint');
+  if(q) list=list.filter(p=>{
+    const s = [p.borrower?.first,p.borrower?.last,p.timeline?.loan_number,p.borrower?.employer,p.borrower?.email,p.property?.address].join(' ').toLowerCase();
+    return s.includes(q);
+  });
+  $('pCount').textContent = list.length+' of '+DATA.profiles.length;
+  let h='';
+  list.forEach(p => {
+    const b=p.borrower, pr=p.property, tl=p.timeline;
+    const stageCls = {closed:'green',denied:'red',withdrawn:'yellow'}[p.loan_stage]||'purple';
+    const co = p.co_borrower ? ' + '+p.co_borrower.first+' '+p.co_borrower.last : '';
+    h += `<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+      <h3>${b.first} ${b.last}${co}<span class="sub">${tl.loan_number}</span></h3>
+      <div class="meta">
+        <span>${tl.app_date}</span>
+        <span>${money(pr.loan_amount)} @ ${pr.rate}%</span>
+        <span class="badge ${stageCls}">${p.loan_stage}${p.loan_stage!==p.effective_stage?' ('+p.effective_stage+')':''}</span>
+        <span class="badge">${pr.loan_type}</span>
+        <span class="badge gray">${pr.loan_purpose}</span>
+        ${b.credit_type==='joint'?'<span class="badge purple">Joint</span>':''}
+      </div></div>
+      <div class="card-body"><table>
+        <tr><td>Income</td><td>${money(b.annual_income)}/yr</td><td>Credit</td><td>${b.credit_score}</td><td>Employer</td><td>${b.employer} — ${b.position}</td></tr>
+        <tr><td>Property</td><td colspan="2">${pr.address}, ${pr.city} ${pr.state} ${pr.zip}</td><td>Purchase</td><td colspan="2">${money(pr.purchase_price)} (down ${money(pr.down_payment)}, ${(pr.down_payment/pr.purchase_price*100).toFixed(0)}%)</td></tr>
+        <tr><td>LO</td><td>${p.loan_officer?.name}</td><td>Processor</td><td>${p.processor?.name}</td><td>Personality</td><td>${p.personality}</td></tr>
+        <tr><td>App Date</td><td>${tl.app_date}</td><td>Closing</td><td>${tl.closing_date}</td><td>Compliant</td><td>${tl.timing_compliant?'Yes':'No — '+tl.timing_violation}</td></tr>
+        <tr><td>LE Sent</td><td>${tl.le_sent_date||'—'}</td><td>CD Sent</td><td>${tl.cd_sent_date||'—'}</td><td>Rate Lock</td><td>${tl.rate_lock_date} — exp ${tl.rate_lock_exp}</td></tr>
+        <tr><td>Realtor</td><td>${p.realtor?.name||'—'} ${p.realtor?.brokerage?'('+p.realtor.brokerage+')':''}</td><td>Title</td><td>${p.title_company?.name||'—'}</td><td>Lender</td><td>${p.lender?.name||'—'}</td></tr>
+        ${p.co_borrower?'<tr><td>Co-Borrower</td><td>'+p.co_borrower.first+' '+p.co_borrower.last+'</td><td>Income</td><td>'+money(p.co_borrower.annual_income)+'/yr</td><td>Credit</td><td>'+p.co_borrower.credit_score+'</td></tr>':''}
+        ${p.refinance?'<tr><td>Refi Type</td><td>'+p.refinance.refi_type+'</td><td>Current Lender</td><td>'+p.refinance.current_lender+'</td><td>Balance</td><td>'+money(p.refinance.current_balance)+' @ '+p.refinance.current_rate+'%</td></tr>':''}
+      </table></div></div>`;
+  });
+  $('pList').innerHTML = h;
+}
+
+/* ── PROSPECTS ── */
+function renderProspects(c) {
+  const prospectEmails = DATA.emails.filter(e=>!e.loan_id);
+  const byBid = {};
+  prospectEmails.forEach(e => { const k=e.borrower_id||'?'; if(!byBid[k])byBid[k]=[]; byBid[k].push(e); });
+  DATA._prospectByBid = byBid;
+
+  const los = [...new Set(DATA.prospects.map(p=>p.loan_officer?.name).filter(Boolean))].sort();
+  const refs = [...new Set(DATA.prospects.map(p=>p.referral_source).filter(Boolean))].sort();
+  const pers = [...new Set(DATA.prospects.map(p=>p.personality).filter(Boolean))].sort();
+
+  let h = `<div class="fb">
+    <select id="prLO" onchange="filterProspects()"><option value="">All LOs</option>${los.map(l=>'<option>'+l+'</option>').join('')}</select>
+    <select id="prRef" onchange="filterProspects()"><option value="">All Referrals</option>${refs.map(r=>'<option>'+r+'</option>').join('')}</select>
+    <select id="prPers" onchange="filterProspects()"><option value="">All Personalities</option>${pers.map(p=>'<option>'+p+'</option>').join('')}</select>
+    <select id="prEmails" onchange="filterProspects()"><option value="">Any # emails</option><option value="1">1 (ghost)</option><option value="2">2</option><option value="3-4">3-4</option><option value="5+">5+</option></select>
+    <input id="prSearch" placeholder="Search name, email..." oninput="filterProspects()">
+    ${ceButtons('prList')}
+    <span class="count" id="prCount"></span>
+  </div><div id="prList"></div>`;
+  c.innerHTML = h;
+  filterProspects();
+}
+function filterProspects() {
+  const lo=$('prLO').value, ref=$('prRef').value, pers=$('prPers').value,
+        ec=$('prEmails').value, q=$('prSearch').value.toLowerCase();
+  const byBid = DATA._prospectByBid||{};
+  let list = DATA.prospects;
+  if(lo) list=list.filter(p=>p.loan_officer?.name===lo);
+  if(ref) list=list.filter(p=>p.referral_source===ref);
+  if(pers) list=list.filter(p=>p.personality===pers);
+  if(ec) { list=list.filter(p=>{ const n=(byBid[p._borrower_id]||[]).length;
+    if(ec==='1')return n===1; if(ec==='2')return n===2; if(ec==='3-4')return n>=3&&n<=4; return n>=5; }); }
+  if(q) list=list.filter(p=>[p.borrower?.first,p.borrower?.last,p.borrower?.email].join(' ').toLowerCase().includes(q));
+  $('prCount').textContent = list.length+' of '+DATA.prospects.length;
+  let h='';
+  list.forEach(p => {
+    const b=p.borrower, lo=p.loan_officer||{};
+    const emails = byBid[p._borrower_id]||[];
+    const n=emails.length;
+    const bcls = n<=1?'red':n<=2?'yellow':'green';
+    h += `<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+      <h3>${b.first} ${b.last}<span class="sub">${b.email}</span></h3>
+      <div class="meta">
+        <span>${money(b.annual_income)}/yr</span><span>score ${b.credit_score||'?'}</span>
+        <span>${lo.name||'?'}</span><span class="badge gray">${p.referral_source}</span>
+        <span class="badge ${bcls}">${n} emails</span><span class="badge">${p.personality||'?'}</span>
+      </div></div>
+      <div class="card-body">`;
+    emails.forEach(e => {
+      h += `<div style="margin-bottom:6px;padding:8px 12px;background:#0d1117;border:1px solid #21262d;border-radius:6px;cursor:pointer" onclick="this.querySelector('.pe-body').style.display=this.querySelector('.pe-body').style.display==='block'?'none':'block'">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span><span class="tag ${e.direction}">${e.direction}</span> <strong style="color:#c9d1d9;font-size:13px">${esc(e.subject||'')}</strong></span>
+          <span style="color:#8b949e;font-size:11px">${(e.from_address||'').split('@')[0]} → ${(e.to_address||'').split('@')[0]} · ${(e.received_at||'').slice(0,16)}</span>
+        </div>
+        <div class="pe-body" style="display:none;margin-top:8px;white-space:pre-wrap;font-size:13px;color:#8b949e;line-height:1.5">${esc(e.body||'')}</div>
+      </div>`;
+    });
+    h += '</div></div>';
+  });
+  $('prList').innerHTML = h;
+}
+
+/* ── EMAILS ── */
+function renderEmails(c) {
+  const loanIds = [...new Set(DATA.emails.filter(e=>e.loan_id).map(e=>e.loan_id))].sort((a,b)=>a-b);
+  const borrowerMap = {};
+  DATA.profiles.forEach(p => { if(p._loan_id) borrowerMap[p._loan_id] = p.borrower.first+' '+p.borrower.last+' ('+p.timeline.loan_number+')'; });
+
+  let h = `<div class="fb">
+    <select id="eLoan" onchange="filterEmails()">
+      <option value="">All (${DATA.emails.length})</option>
+      <option value="prospect">Prospects only</option>
+      <option value="loan">Loans only</option>
+      ${loanIds.map(l=>'<option value="'+l+'">'+(borrowerMap[l]||'Loan '+l)+'</option>').join('')}
+    </select>
+    <select id="eDir" onchange="filterEmails()"><option value="">All Dirs</option><option value="inbound">Inbound</option><option value="outbound">Outbound</option></select>
+    <select id="eMis" onchange="filterEmails()"><option value="">All Flags</option><option value="1">Misalignment</option><option value="unread">Unread</option><option value="attach">Has Attachment</option><option value="attach_file">Attachment w/ File</option><option value="attach_missing">Attachment Missing</option></select>
+    <select id="eAtt" onchange="filterEmails()"><option value="">All Attachments</option></select>
+    <select id="eView" onchange="filterEmails()"><option value="thread">Threaded</option><option value="flat">Flat</option></select>
+    <input id="eSearch" placeholder="Search subject, body, sender..." oninput="filterEmails()">
+    ${ceButtons('eTable')}
+    <span class="count" id="eCount"></span>
+  </div><div id="eTable"></div>`;
+  c.innerHTML = h;
+  const sel = $('eAtt');
+  const docTypes = {
+    '1040':'1040 Tax Return', 'W2':'W-2', 'URLA':'URLA 1003', 'URAR':'URAR 1004 Appraisal',
+    'VOE':'VOE 1005', 'bank_stmt':'Bank Statement', 'pay_stub':'Pay Stub',
+    'purchase_contract':'Purchase Contract', 'loan_estimate':'Loan Estimate',
+    'closing_disclosure':'Closing Disclosure', 'title_commitment':'Title Commitment',
+    'tax_bill':'Tax Bill', 'hoi_binder':'HOI Binder', 'hoa_estoppel':'HOA Estoppel',
+    'credit_report':'Credit Report'
+  };
+  Object.entries(docTypes).sort((a,b)=>a[1].localeCompare(b[1])).forEach(([k,v]) => {
+    const o=document.createElement('option'); o.value=k; o.textContent=v; sel.appendChild(o);
+  });
+  filterEmails();
+}
+function filterEmails() {
+  const loan=$('eLoan').value, dir=$('eDir').value, mis=$('eMis').value,
+        att=$('eAtt').value, view=$('eView').value, q=$('eSearch').value.toLowerCase();
+  let f = DATA.emails;
+  if(loan==='prospect') f=f.filter(e=>!e.loan_id);
+  else if(loan==='loan') f=f.filter(e=>!!e.loan_id);
+  else if(loan) f=f.filter(e=>e.loan_id==loan);
+  if(dir) f=f.filter(e=>e.direction===dir);
+  if(mis==='1') f=f.filter(e=>e.is_misalignment);
+  else if(mis==='unread') f=f.filter(e=>!e.is_read);
+  else if(mis==='attach') f=f.filter(e=>e.has_attachment);
+  else if(mis==='attach_file') f=f.filter(e=>(e._attachments||[]).some(a=>a.url));
+  else if(mis==='attach_missing') f=f.filter(e=>(e._attachments||[]).some(a=>!a.url));
+  if(att) { const re=new RegExp('^'+att+'[_.]','i'); f=f.filter(e=>(e._attachments||[]).some(a=>re.test(a.name))); }
+  if(q) f=f.filter(e=>[(e.subject||''),(e.body||''),(e.from_address||''),(e.to_address||''),(e.attachment_name||'')].join(' ').toLowerCase().includes(q));
+  if(view==='thread') {
+    const matchIds = new Set(f.map(e=>e.id));
+    const tidOf = e => (e.thread_id||('solo-'+e.id))+'::'+(e.loan_id||e.borrower_id||'n');
+    const matchTids = new Set(f.map(tidOf));
+    let pool = DATA.emails;
+    if(loan==='prospect') pool=pool.filter(e=>!e.loan_id);
+    else if(loan==='loan') pool=pool.filter(e=>!!e.loan_id);
+    else if(loan) pool=pool.filter(e=>e.loan_id==loan);
+    const full = pool.filter(e=>matchTids.has(tidOf(e)));
+    $('eCount').textContent = f.length+' matches in '+matchTids.size+' threads ('+full.length+' emails shown)';
+    renderThreaded(full, matchIds);
+  } else {
+    $('eCount').textContent = f.length+' emails';
+    renderFlat(f);
+  }
+}
+function renderThreaded(filtered, matchIds) {
+  const threads={}, order=[];
+  filtered.forEach(e => {
+    const tid=(e.thread_id||('solo-'+e.id))+'::'+(e.loan_id||e.borrower_id||'n');
+    if(!threads[tid]){threads[tid]=[];order.push(tid)} threads[tid].push(e);
+  });
+  let h=`<div style="color:#8b949e;font-size:12px;margin-bottom:8px">${filtered.length} emails in ${order.length} threads</div>`;
+  order.forEach(tid => {
+    const msgs=threads[tid], first=msgs[0];
+    const subj=(first.subject||'').replace(/^RE: */i,'');
+    const unread=msgs.some(m=>!m.is_read), mis=msgs.some(m=>m.is_misalignment);
+    const hasAtts=msgs.some(m=>(m._attachments||[]).length>0);
+    const attCount=msgs.reduce((a,m)=>a+(m._attachments||[]).length,0);
+    const ppl=[...new Set(msgs.map(m=>(m.from_address||'').split('@')[0]))].join(', ');
+    const inN=msgs.filter(m=>m.direction==='inbound').length, outN=msgs.length-inN;
+    const dates=msgs[0].received_at?.slice(0,10)+' — '+msgs[msgs.length-1].received_at?.slice(0,10);
+    const bdr=mis?'border-left:3px solid #da3633;':unread?'border-left:3px solid #58a6ff;':'';
+
+    h+=`<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')" style="${bdr}">
+      <h3><span class="sub" style="margin:0 8px 0 0">${msgs.length}</span>${esc(subj)}</h3>
+      <div class="meta"><span>${dates}</span><span>${ppl}</span>
+        <span class="badge" style="font-size:10px">${inN}↓ ${outN}↑</span>
+        ${hasAtts?'<span class="badge" style="background:#2d2a1a;color:#d29922;font-size:10px">📎 '+attCount+'</span>':''}
+        ${mis?'<span class="badge red">⚠</span>':''}${unread?'<span class="badge" style="background:#1a2a3a">unread</span>':''}
+      </div></div><div class="card-body" style="padding:0">`;
+    msgs.forEach((e,ei) => {
+      const last=ei===msgs.length-1, bc=e.direction==='inbound'?'#238636':'#1f6feb';
+      const eAtts = e._attachments||[];
+      const isMatch = !matchIds || matchIds.has(e.id);
+      const matchBg = (!isMatch)?'opacity:0.45;':'';
+      h+=`<div style="padding:8px 16px;border-left:3px solid ${bc};${last?'':'border-bottom:1px solid #21262d;'}${matchBg}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" onclick="var tb=this.nextElementSibling;tb.style.display=tb.style.display==='block'?'none':'block'">
+          <div style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden">
+            <span class="tag ${e.direction}">${e.direction}</span>
+            <strong style="color:${e.is_read?'#c9d1d9':'#fff'};font-size:13px">${(e.from_address||'').split('@')[0]}</strong>
+            <span style="color:#484f58">→</span>
+            <span style="color:#8b949e;font-size:12px">${(e.to_address||'').split('@')[0]}</span>
+            ${e.cc_address?'<span style="color:#484f58;font-size:11px">cc:'+e.cc_address.split('@')[0]+'</span>':''}
+            ${eAtts.length?'<span class="tag attach">📎 '+eAtts.length+'</span>':''}
+            ${e.is_misalignment?'<span class="tag" style="background:#3d1b1b;color:#f85149">⚠</span>':''}
+          </div>
+          <span style="color:#484f58;font-size:11px;flex-shrink:0">${(e.received_at||'').slice(0,16)}</span>
+        </div>
+        <div style="display:${(isMatch||last)?'block':'none'};margin-top:8px;white-space:pre-wrap;font-size:13px;color:#8b949e;line-height:1.6">${esc(e.body||'')}${e.misalignment_category?'<br>⚠ '+esc(e.misalignment_category):''}${renderAttachments(eAtts)}</div>
+      </div>`;
+    });
+    h+='</div></div>';
+  });
+  $('eTable').innerHTML=h;
+}
+function renderFlat(filtered) {
+  let h=`<table><thead><tr><th>Time</th><th>Dir</th><th>From</th><th>To</th><th>Subject</th><th>Thread</th><th>Attach</th><th>Flags</th></tr></thead><tbody>`;
+  filtered.forEach((e,i) => {
+    const cls=[e.is_read?'':'font-weight:600;color:#fff',e.is_misalignment?'background:#2d1b1b':''].filter(Boolean).join(';');
+    const eAtts=e._attachments||[];
+    h+=`<tr style="cursor:pointer;${cls}" onclick="var el=$('fb${i}');el.style.display=el.style.display==='block'?'none':'block'">
+      <td>${(e.received_at||'').slice(0,16)}</td>
+      <td><span class="tag ${e.direction}">${e.direction}</span></td>
+      <td title="${e.from_address||''}">${(e.from_address||'').split('@')[0]}</td>
+      <td title="${e.to_address||''}">${(e.to_address||'').split('@')[0]}</td>
+      <td>${esc(e.subject||'')}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${e.thread_id||''}">${(e.thread_id||'').slice(0,20)}</td>
+      <td>${eAtts.length?'<span class="tag attach">📎 '+eAtts.length+'</span>':''}</td>
+      <td>${e.is_misalignment?'<span class="tag" style="background:#3d1b1b;color:#f85149">⚠</span>':''}</td>
+    </tr><tr><td colspan="8"><div class="email-body" id="fb${i}">${esc(e.body||'')}${renderAttachments(eAtts)}</div></td></tr>`;
+  });
+  $('eTable').innerHTML=h+'</tbody></table>';
+}
+
+/* ── DOCUMENTS ── */
+function renderDocs(c) {
+  let h = `<div class="fb">
+    <input id="dSearch" placeholder="Search folder or file name..." oninput="filterDocs()">
+    ${ceButtons('dList')}
+    <span class="count" id="dCount"></span>
+  </div><div id="dList"></div>`;
+  c.innerHTML = h;
+  filterDocs();
+}
+function filterDocs() {
+  const q = $('dSearch').value.toLowerCase();
+  const entries = Object.entries(DATA.docs);
+  const filtered = q ? entries.filter(([folder,files]) =>
+    folder.toLowerCase().includes(q) || files.some(f=>f.name.toLowerCase().includes(q))
+  ) : entries;
+  const totalFiles = filtered.reduce((a,[,files])=>a+files.length,0);
+  $('dCount').textContent = filtered.length+' folders, '+totalFiles+' files';
+  let h='';
+  filtered.forEach(([folder,files]) => {
+    const totalSize = files.reduce((a,f)=>a+f.size,0);
+    const matchFiles = q ? files.filter(f=>f.name.toLowerCase().includes(q)||folder.toLowerCase().includes(q)) : files;
+    h += `<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+      <h3>${folder}</h3>
+      <div class="meta"><span>${files.length} docs</span><span>${(totalSize/1024/1024).toFixed(1)} MB</span></div>
+    </div><div class="card-body"><table><thead><tr><th>File</th><th>Size</th><th></th></tr></thead><tbody>`;
+    matchFiles.forEach(f => {
+      h += `<tr><td>${f.name}</td><td>${(f.size/1024).toFixed(1)} KB</td><td><span style="color:#484f58">local only</span></td></tr>`;
+    });
+    h += '</tbody></table></div></div>';
+  });
+  $('dList').innerHTML=h;
+}
+
+/* ── STAFF ── */
+function renderStaff(c) {
+  const roles=[...new Set(DATA.staff.map(s=>s.role))].sort();
+  let h=`<div class="fb">
+    <select id="stRole" onchange="filterStaff()"><option value="">All Roles</option>${roles.map(r=>'<option>'+r+'</option>').join('')}</select>
+    <select id="stActive" onchange="filterStaff()"><option value="">All</option><option value="1">Active</option><option value="0">Former</option></select>
+    <input id="stSearch" placeholder="Search name, email, specialization..." oninput="filterStaff()">
+    ${ceButtons('stList')}
+    <span class="count" id="stCount"></span>
+  </div><div id="stList"></div>`;
+  c.innerHTML=h;
+  filterStaff();
+}
+function filterStaff() {
+  const role=$('stRole').value, active=$('stActive').value, q=$('stSearch').value.toLowerCase();
+  let list=DATA.staff;
+  if(role) list=list.filter(s=>s.role===role);
+  if(active==='1') list=list.filter(s=>s.is_active);
+  if(active==='0') list=list.filter(s=>!s.is_active);
+  if(q) list=list.filter(s=>[s.name,s.email,s.specialization,s.nmls_number].join(' ').toLowerCase().includes(q));
+  $('stCount').textContent=list.length+' of '+DATA.staff.length;
+
+  const loansBy = {};
+  DATA.profiles.forEach(p=>{
+    const lo=p.loan_officer?.name; if(lo){if(!loansBy[lo])loansBy[lo]={total:0,active:0,closed:0,denied:0}; loansBy[lo].total++;
+      const st=p.loan_stage; if(st==='closed')loansBy[lo].closed++; else if(st==='denied')loansBy[lo].denied++; else loansBy[lo].active++;}
+    const pr=p.processor?.name; if(pr){if(!loansBy[pr])loansBy[pr]={total:0,active:0,closed:0,denied:0}; loansBy[pr].total++;
+      const st=p.loan_stage; if(st==='closed')loansBy[pr].closed++; else if(st==='denied')loansBy[pr].denied++; else loansBy[pr].active++;}
+  });
+
+  let h='';
+  list.forEach(s=>{
+    const stats = loansBy[s.name]||{total:0,active:0,closed:0,denied:0};
+    const roleLbl = s.role.replace(/_/g,' ');
+    const activeCls = s.is_active?'green':'red';
+    h+=`<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+      <h3>${s.name}<span class="sub">${roleLbl}</span></h3>
+      <div class="meta">
+        <span>${s.email}</span>
+        ${s.nmls_number?'<span class="badge gray">NMLS '+s.nmls_number+'</span>':''}
+        <span class="badge ${activeCls}">${s.is_active?'Active':'Former'}</span>
+        <span>${stats.total} loans</span>
+        ${stats.active?'<span class="badge purple">'+stats.active+' pipeline</span>':''}
+      </div></div>
+      <div class="card-body"><table>
+        <tr><td>Role</td><td>${roleLbl}</td><td>Email</td><td>${s.email}</td></tr>
+        <tr><td>Hired</td><td>${s.hire_date}</td><td>Terminated</td><td>${s.termination_date||'—'}</td></tr>
+        ${s.nmls_number?'<tr><td>NMLS</td><td>'+s.nmls_number+'</td><td>Pipeline Cap</td><td>'+s.current_pipeline_count+'</td></tr>':''}
+        <tr><td>Specialization</td><td colspan="3">${s.specialization||'—'}</td></tr>
+        <tr><td>Total Loans</td><td>${stats.total}</td><td>Closed</td><td>${stats.closed}</td></tr>
+        <tr><td>Active Pipeline</td><td>${stats.active}</td><td>Denied</td><td>${stats.denied}</td></tr>
+      </table></div></div>`;
+  });
+  $('stList').innerHTML=h;
+}
+
+/* ── VENDORS ── */
+function renderVendors(c) {
+  const types=[...new Set(DATA.vendors.map(v=>v.vendor_type))].sort();
+  let h=`<div class="fb">
+    <select id="vType" onchange="filterVendors()"><option value="">All Types</option><option value="_lenders">Wholesale Lenders</option>${types.map(t=>'<option>'+t.replace(/_/g,' ')+'</option>').join('')}</select>
+    <select id="vPref" onchange="filterVendors()"><option value="">All</option><option value="1">Preferred</option><option value="0">Non-preferred</option></select>
+    <input id="vSearch" placeholder="Search company, contact, notes..." oninput="filterVendors()">
+    ${ceButtons('vList')}
+    <span class="count" id="vCount"></span>
+  </div><div id="vList"></div>`;
+  c.innerHTML=h;
+  filterVendors();
+}
+function filterVendors() {
+  const type=$('vType').value, pref=$('vPref').value, q=$('vSearch').value.toLowerCase();
+  const showLenders = type==='' || type==='_lenders';
+  const showVendors = type!=='_lenders';
+
+  let items = [];
+  if(showVendors) {
+    let vl = DATA.vendors;
+    if(type && type!=='_lenders') vl=vl.filter(v=>v.vendor_type.replace(/_/g,' ')===type);
+    if(pref==='1') vl=vl.filter(v=>v.preferred);
+    if(pref==='0') vl=vl.filter(v=>!v.preferred);
+    if(q) vl=vl.filter(v=>[v.company_name,v.contact_name,v.email,v.notes,v.vendor_type].join(' ').toLowerCase().includes(q));
+    vl.forEach(v=>items.push({kind:'vendor',data:v}));
+  }
+  if(showLenders) {
+    let ll = DATA.lenders;
+    if(q) ll=ll.filter(l=>[l.name,l.contact_email,l.specialties,l.notes].join(' ').toLowerCase().includes(q));
+    ll.forEach(l=>items.push({kind:'lender',data:l}));
+  }
+  $('vCount').textContent=items.length+' total';
+  let h='';
+  items.forEach(({kind,data:v})=>{
+    if(kind==='vendor') {
+      const typeLbl=v.vendor_type.replace(/_/g,' ');
+      h+=`<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+        <h3>${v.company_name}<span class="sub">${v.contact_name}</span></h3>
+        <div class="meta">
+          <span class="badge gray">${typeLbl}</span>
+          ${v.preferred?'<span class="badge green">Preferred</span>':''}
+          <span>${v.phone}</span>
+        </div></div>
+        <div class="card-body"><table>
+          <tr><td>Type</td><td>${typeLbl}</td><td>Contact</td><td>${v.contact_name}</td></tr>
+          <tr><td>Email</td><td>${v.email}</td><td>Phone</td><td>${v.phone}</td></tr>
+          <tr><td>Address</td><td colspan="3">${v.address||'—'}</td></tr>
+          ${v.license_number?'<tr><td>License</td><td colspan="3">'+v.license_number+'</td></tr>':''}
+          <tr><td>Notes</td><td colspan="3" style="white-space:normal;max-width:none">${v.notes||'—'}</td></tr>
+        </table></div></div>`;
+    } else {
+      h+=`<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+        <h3>${v.name}</h3>
+        <div class="meta">
+          <span class="badge">Wholesale Lender</span>
+          <span>${v.specialties}</span>
+          <span>${v.turnaround_days}d turn</span>
+        </div></div>
+        <div class="card-body"><table>
+          <tr><td>Email</td><td>${v.contact_email}</td><td>Phone</td><td>${v.phone}</td></tr>
+          <tr><td>Products</td><td>${v.specialties}</td><td>Turnaround</td><td>${v.turnaround_days} days</td></tr>
+          <tr><td>Min Credit</td><td>${v.min_credit_score}</td><td>Max DTI</td><td>${v.max_dti}%</td></tr>
+          <tr><td>Notes</td><td colspan="3" style="white-space:normal;max-width:none">${v.notes||'—'}</td></tr>
+        </table></div></div>`;
+    }
+  });
+  $('vList').innerHTML=h;
+}
+
+/* ── STRIPE ── */
+function renderStripe(c) {
+  const hideCols = new Set(['metadata','client_secret','features','supported_currencies','permissions']);
+  const tableNames = Object.keys(DATA.stripe);
+  let h = `<div class="fb">
+    <select id="sTable" onchange="filterStripe()"><option value="">All Tables</option>${tableNames.map(t=>'<option>'+t+'</option>').join('')}</select>
+    <input id="sSearch" placeholder="Search any field..." oninput="filterStripe()">
+    ${ceButtons('sList')}
+    <span class="count" id="sCount"></span>
+  </div><div id="sList"></div>`;
+  c.innerHTML=h;
+  filterStripe();
+}
+function filterStripe() {
+  const tbl=$('sTable').value, q=$('sSearch').value.toLowerCase();
+  const hideCols = new Set(['metadata','client_secret','features','supported_currencies','permissions']);
+  let tables = Object.entries(DATA.stripe);
+  if(tbl) tables=tables.filter(([name])=>name===tbl);
+  let totalRows=0;
+  let h='';
+  tables.forEach(([table, rows]) => {
+    let filtered = rows;
+    if(q) filtered=rows.filter(r=>Object.values(r).some(v=>String(v??'').toLowerCase().includes(q)));
+    if(!filtered.length) return;
+    totalRows+=filtered.length;
+    const allCols=Object.keys(rows[0]);
+    const cols=allCols.filter(col=>!hideCols.has(col));
+    h+=`<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+      <h3>${table}</h3><div class="meta"><span class="badge">${filtered.length} rows</span></div></div>
+      <div class="card-body"><div class="stripe-table-wrap"><table><thead><tr>${cols.map(col=>'<th>'+col.replace(/_/g,' ')+'</th>').join('')}</tr></thead><tbody>`;
+    filtered.forEach(r => {
+      h+='<tr>'+cols.map(col=>{
+        let v=r[col];
+        if(typeof v==='number'&&(col.includes('amount')||col.includes('balance')||col==='net'||col==='fee'||col==='total'||col==='subtotal'))
+          return '<td class="money'+(v<0?' neg':'')+'">'+(v<0?'-':'')+'$'+(Math.abs(v)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
+        if(col.includes('_at')||col==='arrival_date'||col==='expected_arrival_date')
+          return '<td>'+(v||'').slice(0,10)+'</td>';
+        if(col==='id'||col.endsWith('_id')||col==='financial_account'||col==='destination'||col==='session_id')
+          return '<td title="'+(v??'')+'" style="max-width:100px">'+(v??'').slice(0,12)+'</td>';
+        return '<td>'+(v??'')+'</td>';
+      }).join('')+'</tr>';
+    });
+    h+='</tbody></table></div></div></div>';
+  });
+  $('sCount').textContent=totalRows+' records';
+  $('sList').innerHTML=h;
+}
+
+/* ── TIMELINE ── */
+function renderTimeline(c) {
+  const stages=[...new Set(DATA.profiles.map(p=>p.loan_stage))].sort();
+  let h=`<div class="fb">
+    <select id="tStage" onchange="filterTimeline()"><option value="">All Stages</option>${stages.map(s=>'<option>'+s+'</option>').join('')}</select>
+    <input id="tSearch" placeholder="Search name, loan #..." oninput="filterTimeline()">
+    ${ceButtons('tList')}
+    <span class="count" id="tCount"></span>
+  </div><div id="tList"></div>`;
+  c.innerHTML=h;
+  filterTimeline();
+}
+function filterTimeline() {
+  const stage=$('tStage').value, q=$('tSearch').value.toLowerCase();
+  let list=DATA.profiles;
+  if(stage) list=list.filter(p=>p.loan_stage===stage);
+  if(q) list=list.filter(p=>[p.borrower?.first,p.borrower?.last,p.timeline?.loan_number].join(' ').toLowerCase().includes(q));
+  $('tCount').textContent=list.length+' loans';
+  let h='';
+  list.forEach(p => {
+    const b=p.borrower, tl=p.timeline;
+    const stageCls={closed:'green',denied:'red',withdrawn:'yellow'}[p.loan_stage]||'purple';
+    const events=[
+      {date:tl.app_date, label:'Application submitted'},
+      {date:tl.le_sent_date, label:'Loan Estimate sent'},
+      {date:tl.rate_lock_date, label:'Rate locked at '+p.property?.rate+'%'},
+      {date:tl.appraisal_ordered, label:'Appraisal ordered'},
+      {date:tl.appraisal_report, label:'Appraisal report received'},
+    ];
+    if(tl.cd_sent_date) events.push({date:tl.cd_sent_date, label:'Closing Disclosure sent'});
+    if(p.loan_stage==='closed') events.push({date:tl.closing_date, label:'Closed', cls:'closed'});
+    else if(p.loan_stage==='denied') events.push({date:tl.closing_date, label:'Denied', cls:'denied'});
+    else if(p.loan_stage==='withdrawn') events.push({date:tl.closing_date, label:'Withdrawn', cls:'withdrawn'});
+    else events.push({date:tl.closing_date, label:'Expected closing'});
+    events.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+
+    h+=`<div class="card"><div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+      <h3>${b.first} ${b.last}<span class="sub">${tl.loan_number}</span></h3>
+      <div class="meta"><span>${tl.app_date} → ${tl.closing_date}</span><span class="badge ${stageCls}">${p.loan_stage}</span></div>
+    </div><div class="card-body"><div class="timeline">`;
+    events.forEach(e => {
+      if(e.date) h+=`<div class="tl-item ${e.cls||''}"><div class="date">${e.date}</div><div class="label">${e.label}</div></div>`;
+    });
+    h+='</div></div></div>';
+  });
+  $('tList').innerHTML=h;
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  if(!e.target.classList.contains('tab')) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  e.target.classList.add('active');
+  render(e.target.dataset.tab);
+});
+load();
+</script>
+</body></html>
